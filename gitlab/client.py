@@ -591,7 +591,18 @@ class Gitlab(object):
 
         cur_retries = 0
         while True:
-            result = self.session.send(prepped, timeout=timeout, **settings)
+            try:
+                result = self.session.send(prepped, timeout=timeout, **settings)
+            except requests.RequestException:
+                if retry_transient_errors and (
+                    max_retries == -1 or cur_retries < max_retries
+                ):
+                    wait_time = 2 ** cur_retries * 0.1
+                    cur_retries += 1
+                    time.sleep(wait_time)
+                    continue
+
+                raise
 
             self._check_redirects(result)
 
